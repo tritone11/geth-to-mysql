@@ -8,4 +8,5 @@ If you want to restart the import, just delete all blocks from the db and leave 
 node source.js
 ```
 
-
+When synced, it listens for new blocks and add them to the database.  
+It supports blocks data, txs, address balances and tx history.
