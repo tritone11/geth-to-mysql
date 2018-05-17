@@ -1,13 +1,8 @@
 var mysql = require('mysql');
-var Web3 = require('web3'); //web3 0.20 required
+var Web3 = require('web3');
 var web3 = new Web3();
-web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545")); //geth node
-var config = {
-  host: "dbhost",
-  user: "user",
-  password: "password",
-  database: "ethereum"
-}
+web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+
 var latestSyncedBlock = 0;
 
 function synced() {
@@ -25,7 +20,12 @@ function synced() {
     console.log('current block #' + block.number);
   });
 }
-var con = mysql.createConnection(config);
+var con = mysql.createConnection({
+  host: "host",
+  user: "user",
+  password: "password",
+  database: "database"
+});
 con.connect(function(err) {
   if (err) throw err;
   con.query("SELECT * FROM block", function(err, result, fields) {
@@ -46,7 +46,7 @@ function syncBlock() {
     "', '" + block.timestamp + "', '" + block.size + "', '" + block.transactions.length + "', '" + block['number'] + "', '" + block.sha3Uncles + "', '" + block.extraData + "', '" + block.gasUsed +
     "')";
   console.log("syncing block number " + blockToSync);
-  syncTransactions(latestSyncedBlock, block);
+  syncTransactions(latestSyncedBlock, block, block.timestamp);
   con.query(sql, function(err, result) {
     if (err) throw err;
     console.log("1 block inserted");
@@ -61,46 +61,35 @@ function syncBlock() {
   console.log('current block #' + block.number);
 }
 
-function syncTransactions(ofblock, block) {
+function syncTransactions(ofblock, block, timestamp) {
   for (var i = 0; i < block.transactions.length; i++) {
     console.log(block.transactions[i]);
     var tx = web3.eth.getTransactionFromBlock(block.hash, i);
-    var sql = "INSERT INTO transaction (blocknumber, txid, value, gas, gasprice, nonce, txdata, block_id,sender_id,receiver_id) VALUES ('" + ofblock + "','" + tx.hash + "', '" + tx['value'] + "', '" +
-      tx.gas + "', '" + tx.gasPrice + "', '" + tx.nonce + "', '" + tx['input'] + "', '" + ofblock + "','" + tx["from"] + "','" + tx["to"] + "')";
+    var sql = "INSERT INTO transaction (blocknumber, txid, value, gas, gasprice, nonce, txdata, block_id,sender_id,receiver_id,timestamp) VALUES ('" + ofblock + "','" + tx.hash + "', '" + tx['value'] +
+      "', '" + tx.gas + "', '" + tx.gasPrice + "', '" + tx.nonce + "', '" + tx['input'] + "', '" + ofblock + "','" + tx["from"] + "','" + tx["to"] + "','" + timestamp + "')";
     updateAddress(tx["from"], sql);
-    updateAddress(tx["to"]);
+    updateAddress(tx["to"], false);
   }
 }
 
-function updateAddress(address, txsql) {
+function updateAddress(address, txsql, timestamp) {
   console.log("checking address");
   console.log(address);
-  con.query('SELECT 1 FROM address WHERE address = "' + address + '"', function(err, result) {
+  var sql = "INSERT INTO address (address, balance) VALUES ('" + address + "','" + web3.eth.getBalance(address) + "') ON DUPLICATE KEY UPDATE balance = '" + web3.eth.getBalance(address) + "'";
+  con.query(sql, function(err, result) {
     if (err) throw err;
-    console.log("Callback on address")
-    if (result.length > 0) {
-      var sql = "UPDATE address SET balance = '" + web3.eth.getBalance(address) + "' WHERE address = '" + address + "'";
-      con.query(sql, function(err, result) {
+    if (txsql) {
+      con.query(txsql, function(err, result) {
         if (err) throw err;
-        if (txsql) {
-          con.query(txsql, function(err, result) {
-            if (err) throw err;
-            console.log("1 tx inserted");
-          });
-        }
         console.log("1 tx inserted");
-      });
-    } else {
-      var sql = "INSERT INTO address (address, balance, txcount) VALUES ('" + address + "','" + web3.eth.getBalance(address) + "',0)";
-      con.query(sql, function(err, result) {
-        if (err) throw err;
-        if (txsql) {
-          con.query(txsql, function(err, result) {
-            if (err) throw err;
-            console.log("1 tx inserted");
-          });
-        }
-        console.log("1 tx inserted");
+        con.query("UPDATE address SET inputcount = (SELECT COUNT(*) FROM transaction WHERE receiver_id = '" + address + "') WHERE address = '" + address + "'", function(err, result) {
+          if (err) throw err;
+          console.log("tx input count updated");
+        });
+        con.query("UPDATE address SET outputcount = (SELECT COUNT(*) FROM transaction WHERE sender_id = '" + address + "') WHERE address = '" + address + "'", function(err, result) {
+          if (err) throw err;
+          console.log("tx output count updated");
+        });
       });
     }
   });
