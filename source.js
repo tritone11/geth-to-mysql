@@ -56,8 +56,8 @@ function syncBlock(block) {
         var txsql = "INSERT INTO transaction (txid, value, gas, gasprice, nonce, txdata, block_id,sender,receiver,timestamp) VALUES ('" + tx.hash + "', '" + tx['value'] + "', '" + tx.gas + "', '" +
           tx.gasPrice + "', '" + tx.nonce + "', '" + tx['input'] + "', '" + blockToSync + "','" + tx["from"] + "','" + tx["to"] + "','" + timestamp + "')";
         addTx(txsql, tx.hash);
-        var tosql = "INSERT INTO address (address) VALUES ('" + tx["to"] + "') ON DUPLICATE KEY UPDATE id=id";
-        var fromsql = "INSERT INTO address (address) VALUES ('" + tx["from"] + "') ON DUPLICATE KEY UPDATE id=id";
+        var tosql = "INSERT INTO address (address,inputcount,outputcount) VALUES ('" + tx["to"] + "',0,0) ON DUPLICATE KEY UPDATE id=id";
+        var fromsql = "INSERT INTO address (address,outputcount,inputcount) VALUES ('" + tx["from"] + "',0,0) ON DUPLICATE KEY UPDATE id=id";
         addAddress(tosql, fromsql, tx["to"], tx["from"]);
       }
       latestSyncedBlock++;
@@ -97,11 +97,11 @@ function addAddress(to, fr, toad, frad) {
     if (err) throw err;
     console.log("Address " + toad + " INSERTED!");
   });
-  con.query("UPDATE address SET inputcount = (SELECT COUNT(*) FROM transaction WHERE receiver = '" + toad + "') WHERE address = '" + toad + "'", function(err, result) {
+  con.query("UPDATE address SET inputcount = inputcount + 1 WHERE address = '" + toad + "'", function(err, result) {
     if (err) throw err;
     console.log(toad + " input count updated");
   });
-  con.query("UPDATE address SET outputcount = (SELECT COUNT(*) FROM transaction WHERE sender = '" + frad + "') WHERE address = '" + frad + "'", function(err, result) {
+  con.query("UPDATE address SET outputcount = outputcount + 1 WHERE address = '" + frad + "'", function(err, result) {
     if (err) throw err;
     console.log(frad + " output count updated");
   });
