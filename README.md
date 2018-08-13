@@ -13,4 +13,5 @@ It supports blocks data, txs, address balances and tx history.
 
 ## PostgreSQL  
 
-psql.py is for postgre, with web3 ipc provider. It is more than 50x faster in the import and it can stay behind a private network with 1s block time
+psql.py is for postgre, with web3 ipc provider. It is more than 50x faster in the import and it can stay behind a private network with 1s block time.  
+This can be used for a high performance explorer, it is currently tested on an explorer made with Django, CitusDB and a blockchain with 1s block time. It is handling more than 500k blocks with an average of 25 transactions
