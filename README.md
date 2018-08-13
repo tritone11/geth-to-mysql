@@ -9,4 +9,8 @@ node source.js
 ```
 
 When synced, it listens for new blocks and add them to the database.  
-It supports blocks data, txs, address balances and tx history.
+It supports blocks data, txs, address balances and tx history. 
+
+## PostgreSQL  
+
+psql.py is for postgre, with web3 ipc provider. It is more than 50x faster in the import and it can stay behind a private network with 1s block time
